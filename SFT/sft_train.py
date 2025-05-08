@@ -83,7 +83,7 @@ def load_model_and_tokenizer(args):
 
 # Dataset loading
 def load_data(args, tokenizer):
-    data = load_dataset(args.train_data, split="train")
+    data = load_dataset('csv', data_files=args.train_data, split="train")
     train_data, eval_data = preprocess_dataset(data, tokenizer, args.max_length)
     print("Train data length: ", len(train_data))
     print("Eval data length: ", len(eval_data))
@@ -107,13 +107,13 @@ def train_model(args, tokenizer, model):
         eval_steps=100,
         logging_steps=2,
         save_steps=100,
-        save_total_limit=20,
+        save_total_limit=1,
         learning_rate=args.learning_rate,
         load_best_model_at_end=True,
         weight_decay=0.1,
         max_grad_norm=1.0,
         bf16=True,
-        report_to="wandb" if not args.debugging else "none",
+        report_to="wandb",
         remove_unused_columns=False,
     )
 
