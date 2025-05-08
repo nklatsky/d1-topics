@@ -127,13 +127,24 @@ def preprocess_dataset(data, tokenizer, max_length, test_split=0.01):
     data_seq['thinking_trajectories'] = data_seq['full_sequence'].str.split(split_1).str[1].str.split(split_2).str[0]
     data_seq['attempt'] = data_seq['full_sequence'].str.split(split_1).str[1].str.split(split_2).str[1]
 
-    data = data_seq[['question', 'thinking_trajectories', 'attempt']]
+    data_for_loop = data_seq[['question', 'thinking_trajectories', 'attempt']]
 
     ### END ADDED CODE ###
     preprocessed_data = []
-    for i in tqdm(range(len(data)), desc="Preprocessing dataset"):
-        question = SYSTEM_PROMPT + "\n\n" + data[i]["question"]
-        trajectory = f"<reasoning>{data[i]['thinking_trajectories'][0]}</reasoning>\n<answer>{data[i]['attempt']}</answer>"
+    for i in tqdm(range(len(data_for_loop)), desc="Preprocessing dataset"):
+        ### ADDED CODE ###
+        row = data_for_loop.iloc[i] # Get the i-th row as a pandas Series
+        
+        question_text = row["question"]
+        thinking_traj_text = row['thinking_trajectories']
+        attempt_text = row['attempt']
+
+        question = SYSTEM_PROMPT + "\n\n" + question_text
+
+
+        trajectory = f"<reasoning>{thinking_traj_text}</reasoning>\n<answer>{attempt_text}</answer>"
+        ### END ADDED CODE ###
+
         prompt = [{"role": "user", "content": question}]
         response = [{"role": "assistant", "content": trajectory}]
         inputs = tokenizer.apply_chat_template(prompt + response, tokenize=False)
