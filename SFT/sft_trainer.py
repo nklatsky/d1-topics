@@ -112,6 +112,24 @@ Your reasoning here
 
 
 def preprocess_dataset(data, tokenizer, max_length, test_split=0.01):
+
+    ### ADDED CODE###
+    import pandas as pd
+
+    data_df = data.to_pandas()
+    data_seq = data_df.copy()
+
+    split_1 = "; High-Level Plan ;"
+    split_2 = " ; The answer is #### "
+
+    # Create new cols in data_seq as 'question', 'thinking_trajectories', 'attempt' where 'question' is the text up until split1, 'thinking_trajectories' is the text between split1 and split2, and 'attempt' is the text after split2
+    data_seq['question'] = data_seq['full_sequence'].str.split(split_1).str[0]
+    data_seq['thinking_trajectories'] = data_seq['full_sequence'].str.split(split_1).str[1].str.split(split_2).str[0]
+    data_seq['attempt'] = data_seq['full_sequence'].str.split(split_1).str[1].str.split(split_2).str[1]
+
+    data = data_seq[['question', 'thinking_trajectories', 'attempt']]
+
+    ### END ADDED CODE ###
     preprocessed_data = []
     for i in tqdm(range(len(data)), desc="Preprocessing dataset"):
         question = SYSTEM_PROMPT + "\n\n" + data[i]["question"]
