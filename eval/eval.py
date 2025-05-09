@@ -197,7 +197,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     args.diffusion_steps = args.gen_length // 2
-    num_evals = {"gsm8k": -1, "math": -1, "countdown": 256, "sudoku": 256}
+    num_evals = {"gsm8k": -1, "math": -1, "countdown": 256, "sudoku": 256, "gsm8k_fewshot": -1}
 
     model = AutoModel.from_pretrained(args.model_path, trust_remote_code=True, torch_dtype=torch.bfloat16).to(
         local_rank
