@@ -18,12 +18,14 @@ from gsm8k import GSM8KDataset
 from math500 import MATH500Dataset
 from countdown import CTDDataset
 from sudoku import SudokuDataset
+from gsm8k_fewshot import GSM8KFewShotDataset
 
 DATASET_MAP = {
     "gsm8k": GSM8KDataset,
     "math": MATH500Dataset,
     "countdown": CTDDataset,
     "sudoku": SudokuDataset,
+    "gsm8k_fewshot": GSM8KFewShotDataset,
 }
 
 
