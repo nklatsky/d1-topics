@@ -213,9 +213,10 @@ def preprocess_dataset(data, tokenizer, max_length, test_split=0.01):
         ).input_ids.squeeze(0)
 
         # Debug print:
-        print("Index: ", i)
-        print(f"Full Conversation Text: {full_conversation_text}")
-        print(f"Tokenized Input: {tokenized_input}")
+        if i % 1000 == 0:
+            print("Index: ", i)
+            print(f"Full Conversation Text: {full_conversation_text}")
+            print(f"Tokenized Input: {tokenized_input}")
 
 
         prompt_part_text = tokenizer.apply_chat_template(
