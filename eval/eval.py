@@ -179,7 +179,7 @@ if __name__ == "__main__":
     parser.add_argument("--few_shot", type=int, default=0)
     parser.add_argument("--batch_size", type=int, default=4)
     parser.add_argument(
-        "--dataset", type=str, choices=["gsm8k", "math", "countdown", "sudoku", "game24"], default="gsm8k"
+        "--dataset", type=str, choices=["gsm8k", "math", "countdown", "sudoku", "game24", "gsm8k_fewshot"], default="gsm8k"
     )
     parser.add_argument("--suffix", type=str, default="")
     parser.add_argument("--checkpoint_path", type=str, default="")
@@ -190,6 +190,8 @@ if __name__ == "__main__":
     parser.add_argument("--dont_save", action="store_true")
     parser.add_argument("--output_dir", type=str, default="results/")
     parser.add_argument("--dont_use_box", action="store_true")
+    parser.add_argument("--few_shot_path", type=str, default=None, help="Path to custom few-shot dataset (JSON or JSONL)")
+    
     args = parser.parse_args()
 
     args.diffusion_steps = args.gen_length // 2
