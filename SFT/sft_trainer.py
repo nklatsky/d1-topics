@@ -110,58 +110,129 @@ Your reasoning here
 </answer>
 """
 
+# New SYSTEM_PROMPT for High-Level Plan rows
+SYSTEM_PROMPT_HLP = """Reponse to the question with nothing but the high-level planning steps required to solve the problem, in this format:
+<high-level planning>
+High-level planning steps here
+</high-level planning>"""
+
 
 def preprocess_dataset(data, tokenizer, max_length, test_split=0.01):
-
-    ### ADDED CODE###
-    import pandas as pd
-
     data_df = data.to_pandas()
     data_seq = data_df.copy()
 
     split_1 = "; High-Level Plan ;"
-    split_2 = " ; The answer is #### "
+    split_2 = " ; The answer is #### " # This will only be used for non-HLP rows
 
-    # Create new cols in data_seq as 'question', 'thinking_trajectories', 'attempt' where 'question' is the text up until split1, 'thinking_trajectories' is the text between split1 and split2, and 'attempt' is the text after split2
-    data_seq['question'] = data_seq['full_sequence'].str.split(split_1).str[0]
-    data_seq['thinking_trajectories'] = data_seq['full_sequence'].str.split(split_1).str[1].str.split(split_2).str[0]
-    data_seq['attempt'] = data_seq['full_sequence'].str.split(split_1).str[1].str.split(split_2).str[1]
+    # Initialize columns
+    data_seq['question'] = ""
+    data_seq['thinking_trajectories'] = ""
+    data_seq['attempt'] = ""
 
-    data_for_loop = data_seq[['question', 'thinking_trajectories', 'attempt']]
+    has_hlp_column = "hlp?" in data_seq.columns
 
-    ### END ADDED CODE ###
+    for index, row_series in data_seq.iterrows():
+        full_sequence_text = str(row_series['full_sequence'])
+        is_hlp_row_for_split = False
+        if has_hlp_column and pd.notna(row_series["hlp?"]) and int(row_series["hlp?"]) == 1:
+            is_hlp_row_for_split = True
+
+        parts_at_split1 = full_sequence_text.split(split_1, 1)
+        current_question = parts_at_split1[0].strip()
+        data_seq.loc[index, 'question'] = current_question
+
+        if len(parts_at_split1) > 1:
+            text_after_split1 = parts_at_split1[1].strip()
+            if is_hlp_row_for_split:
+                # For HLP rows, 'thinking_trajectories' is everything after split_1
+                data_seq.loc[index, 'thinking_trajectories'] = text_after_split1
+                data_seq.loc[index, 'attempt'] = "" # Ensure attempt is empty for HLP
+            else:
+                # For non-HLP rows, use split_2 on the text after split_1
+                parts_at_split2 = text_after_split1.split(split_2, 1)
+                data_seq.loc[index, 'thinking_trajectories'] = parts_at_split2[0].strip()
+                if len(parts_at_split2) > 1:
+                    data_seq.loc[index, 'attempt'] = parts_at_split2[1].strip()
+                else:
+                    data_seq.loc[index, 'attempt'] = "" # No text after split_2
+        else:
+            # No text after split_1
+            data_seq.loc[index, 'thinking_trajectories'] = ""
+            data_seq.loc[index, 'attempt'] = ""
+            
+    # Determine which columns to select for the loop
+    cols_to_select = ['question', 'thinking_trajectories', 'attempt']
+    if has_hlp_column:
+        cols_to_select.append('hlp?')
+    
+    data_for_loop = data_seq[cols_to_select]
+
     preprocessed_data = []
     for i in tqdm(range(len(data_for_loop)), desc="Preprocessing dataset"):
-        ### ADDED CODE ###
-        row = data_for_loop.iloc[i] # Get the i-th row as a pandas Series
+        row = data_for_loop.iloc[i]
         
-        question_text = row["question"]
-        thinking_traj_text = row['thinking_trajectories']
-        attempt_text = row['attempt']
+        question_text_from_split = str(row["question"])
+        thinking_traj_text = str(row['thinking_trajectories'])
+        attempt_text = str(row['attempt'])
 
-        question = SYSTEM_PROMPT + "\n\n" + question_text
+        user_content_for_prompt = ""
+        assistant_content = ""
+        
+        is_hlp_row_for_prompt = False
+        if has_hlp_column and pd.notna(row["hlp?"]) and int(row["hlp?"]) == 1:
+            is_hlp_row_for_prompt = True
 
+        if is_hlp_row_for_prompt:
+            # High-Level Plan row
+            user_content_for_prompt = SYSTEM_PROMPT_HLP + "\n\n" + question_text_from_split
+            # 'thinking_traj_text' for HLP rows now directly contains the full high-level plan
+            assistant_content = f"<high-level planning>\n{thinking_traj_text}\n</high-level planning>"
+        else:
+            # Regular row
+            user_content_for_prompt = SYSTEM_PROMPT + "\n\n" + question_text_from_split
+            assistant_content = f"<reasoning>\n{thinking_traj_text}\n</reasoning>\n<answer>\n{attempt_text}\n</answer>"
 
-        trajectory = f"<reasoning>{thinking_traj_text}</reasoning>\n<answer>{attempt_text}</answer>"
-        ### END ADDED CODE ###
-
-        prompt = [{"role": "user", "content": question}]
-        response = [{"role": "assistant", "content": trajectory}]
-        inputs = tokenizer.apply_chat_template(prompt + response, tokenize=False)
-        prompt = tokenizer.apply_chat_template(prompt, tokenize=False) + "\n"
+        user_message = {"role": "user", "content": user_content_for_prompt}
+        assistant_message = {"role": "assistant", "content": assistant_content}
+        
+        full_conversation_text = tokenizer.apply_chat_template(
+            [user_message, assistant_message], 
+            tokenize=False
+        )
         tokenized_input = tokenizer(
-            inputs, return_tensors="pt", truncation=True, max_length=max_length, padding="max_length"
+            full_conversation_text, 
+            return_tensors="pt", 
+            truncation=True, 
+            max_length=max_length, 
+            padding="max_length"
         ).input_ids.squeeze(0)
-        num_tokens = tokenized_input.shape[0]
-        tokenized_prompt = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=max_length)
+
+        prompt_part_text = tokenizer.apply_chat_template(
+            [user_message], 
+            tokenize=False, 
+            add_generation_prompt=True 
+        )
+        tokenized_prompt_for_length = tokenizer(
+            prompt_part_text, 
+            return_tensors="pt", 
+            truncation=True, 
+            max_length=max_length
+        )
+        
         preprocessed_data.append(
             {
                 "input_ids": tokenized_input,
-                "prompt_lengths": tokenized_prompt.attention_mask.sum(-1),
+                "prompt_lengths": tokenized_prompt_for_length.attention_mask.sum(-1),
             }
         )
 
     random.shuffle(preprocessed_data)
-    test_data = preprocessed_data[: int(len(preprocessed_data) * test_split)]
-    train_data = preprocessed_data[int(len(preprocessed_data) * test_split) :]
+    num_test_samples = int(len(preprocessed_data) * test_split)
+    test_data = preprocessed_data[:num_test_samples]
+    train_data = preprocessed_data[num_test_samples:]
+    
+    print(f"Total preprocessed examples: {len(preprocessed_data)}")
+    print(f"Train data length after split: {len(train_data)}")
+    print(f"Test data length after split: {len(test_data)}")
+
     return train_data, test_data
