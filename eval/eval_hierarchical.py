@@ -12,6 +12,8 @@ from torch.utils.data import DataLoader, DistributedSampler
 from tqdm import tqdm
 from transformers import AutoTokenizer, AutoModel
 from peft import PeftModel
+from datasets import load_dataset
+
 
 from generate import generate
 from gsm8k import GSM8KDataset
