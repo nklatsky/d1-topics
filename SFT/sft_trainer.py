@@ -116,6 +116,11 @@ SYSTEM_PROMPT_HLP = """Reponse to the question with nothing but the high-level p
 High-level planning steps here
 </high-level planning>"""
 
+from tqdm import tqdm
+import pickle
+import torch.distributed as dist
+import pandas as pd
+
 
 def preprocess_dataset(data, tokenizer, max_length, test_split=0.01):
     data_df = data.to_pandas()
@@ -207,6 +212,12 @@ def preprocess_dataset(data, tokenizer, max_length, test_split=0.01):
             padding="max_length"
         ).input_ids.squeeze(0)
 
+        # Debug print:
+        print("Index: ", i)
+        print(f"Full Conversation Text: {full_conversation_text}")
+        print(f"Tokenized Input: {tokenized_input}")
+
+
         prompt_part_text = tokenizer.apply_chat_template(
             [user_message], 
             tokenize=False, 
@@ -234,5 +245,7 @@ def preprocess_dataset(data, tokenizer, max_length, test_split=0.01):
     print(f"Total preprocessed examples: {len(preprocessed_data)}")
     print(f"Train data length after split: {len(train_data)}")
     print(f"Test data length after split: {len(test_data)}")
+
+   
 
     return train_data, test_data
