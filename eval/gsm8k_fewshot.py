@@ -43,10 +43,11 @@ class GSM8KFewShotDataset(torch.utils.data.Dataset):
         self.num_examples = num_examples
         self.add_reasoning = add_reasoning
         self.system_prompt = system_prompt
+        self.few_shot_path = few_shot_path
         self.load_test_dataset()
         self.create_few_shot_prompt()
         
-        self.few_shot_path = few_shot_path
+        
 
         self.subsample = (
             np.random.choice(len(self.dataset), subsample, replace=False)
