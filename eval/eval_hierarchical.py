@@ -41,6 +41,42 @@ Your step-by-step reasoning here, following the plan.
 \\boxed{...}
 </answer>"""
 
+class GSM8KHierarchicalDataset(torch.utils.data.Dataset):
+    def __init__(
+        self,
+        tokenizer,
+        subsample=-1,
+    ):
+        self.tokenizer = tokenizer
+        self.load_test_dataset()
+        self.subsample_indices = (
+            np.random.choice(len(self.dataset), subsample, replace=False)
+            if subsample != -1
+            else np.arange(len(self.dataset))
+        )
+        print(f"GSM8KHierarchicalDataset: evaluating {len(self.subsample_indices)} examples")
+        assert subsample <= len(self.dataset), "Subsample size is greater than dataset size"
+
+    def __len__(self):
+        return len(self.subsample_indices)
+
+    def load_test_dataset(self):
+        self.dataset = load_dataset("gsm8k", "main", split="test")
+
+    def __getitem__(self, idx):
+        actual_idx = self.subsample_indices[idx]
+        question = self.dataset[actual_idx.item()]["question"]
+        answer_raw = self.dataset[actual_idx.item()]["answer"]
+        return {"question": question, "answer_raw": answer_raw}
+
+    @staticmethod
+    def collate_fn(batch):
+        questions = [item["question"] for item in batch]
+        answers_raw = [item["answer_raw"] for item in batch]
+        return {"questions": questions, "answers_raw": answers_raw}
+
+
+
 DATASET_MAP = {
     "gsm8k": GSM8KDataset,
     "math": MATH500Dataset,
@@ -233,41 +269,6 @@ class CustomDistributedSampler(DistributedSampler):
 
         self.shuffle = shuffle
         self.seed = seed
-
-
-class GSM8KHierarchicalDataset(torch.utils.data.Dataset):
-    def __init__(
-        self,
-        tokenizer,
-        subsample=-1,
-    ):
-        self.tokenizer = tokenizer
-        self.load_test_dataset()
-        self.subsample_indices = (
-            np.random.choice(len(self.dataset), subsample, replace=False)
-            if subsample != -1
-            else np.arange(len(self.dataset))
-        )
-        print(f"GSM8KHierarchicalDataset: evaluating {len(self.subsample_indices)} examples")
-        assert subsample <= len(self.dataset), "Subsample size is greater than dataset size"
-
-    def __len__(self):
-        return len(self.subsample_indices)
-
-    def load_test_dataset(self):
-        self.dataset = load_dataset("gsm8k", "main", split="test")
-
-    def __getitem__(self, idx):
-        actual_idx = self.subsample_indices[idx]
-        question = self.dataset[actual_idx.item()]["question"]
-        answer_raw = self.dataset[actual_idx.item()]["answer"]
-        return {"question": question, "answer_raw": answer_raw}
-
-    @staticmethod
-    def collate_fn(batch):
-        questions = [item["question"] for item in batch]
-        answers_raw = [item["answer_raw"] for item in batch]
-        return {"questions": questions, "answers_raw": answers_raw}
 
 
 if __name__ == "__main__":
